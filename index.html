@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PredictMaint · Failure Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+/* ── Design System ─────────────────────────────────────────────────── */
+:root {
+  --bg:           #f4f5f7;
+  --surface:      #ffffff;
+  --surface-2:    #eef0f2;
+  --border:       #d4d8dd;
+  --text:         #1a1d21;
+  --text-muted:   #6b7380;
+  --text-dim:     #9ba3af;
+  --accent:       #2c6b9e;
+  --accent-dim:   rgba(44, 107, 158, 0.08);
+  --danger:       #c0392b;
+  --warn:         #d9822b;
+  --caution:      #b7950b;
+  --ok:           #1e8449;
+  --accent-hover: #1f5a87;
+  --accent-active:#1a4d73;
+  --font:         'Inter', sans-serif;
+  --radius:       4px;
+  --transition:   0.15s ease;
+  --shadow:       0 1px 3px rgba(0,0,0,0.06);
+  --toast-bg:     #fbeae7;
+  --toast-border: var(--danger);
+}
+
+[data-theme="dark"] {
+  --bg:           #121416;
+  --surface:      #1a1d21;
+  --surface-2:    #23272b;
+  --border:       #2e3238;
+  --text:         #e4e6ea;
+  --text-muted:   #9a9ea6;
+  --text-dim:     #5c6168;
+  --accent:       #4a9eff;
+  --accent-dim:   rgba(74, 158, 255, 0.1);
+  --accent-hover: #3a8aee;
+  --accent-active:#2a7add;
+  --danger:       #e5534b;
+  --warn:         #e8923a;
+  --caution:      #c8a32a;
+  --ok:           #34d058;
+  --shadow:       0 1px 3px rgba(0,0,0,0.3);
+  --toast-bg:     #2d1515;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  transition: background var(--transition), color var(--transition);
+}
+
+/* ── Header ────────────────────────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky; top: 0;
+  z-index: 100;
+  transition: background var(--transition), border-color var(--transition);
+}
+.logo {
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-icon {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 14px; font-weight: 600;
+  transition: background var(--transition);
+}
+.logo-text {
+  font-size: 16px; font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.logo-text span { color: var(--accent); transition: color var(--transition); }
+.header-status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--text-muted);
+}
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%; background: var(--ok);
+  transition: background var(--transition);
+}
+.header-meta {
+  display: flex; gap: 12px; align-items: center;
+  font-size: 13px; color: var(--text-muted);
+}
+.badge {
+  padding: 2px 8px;
+  background: var(--accent-dim);
+  border-radius: 3px;
+  color: var(--accent); font-size: 12px;
+  font-weight: 500;
+  transition: background var(--transition), color var(--transition);
+}
+
+/* ── Theme toggle ──────────────────────────────────────────────────── */
+.theme-toggle {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 32px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-muted);
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+  user-select: none;
+}
+.theme-toggle:hover {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── Layout ────────────────────────────────────────────────────────── */
+main {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 0;
+  min-height: calc(100vh - 53px);
+}
+
+/* ── Panel ─────────────────────────────────────────────────────────── */
+.panel {
+  padding: 24px 24px;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  transition: background var(--transition), border-color var(--transition);
+}
+.panel-right {
+  padding: 24px 28px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+/* ── Section label ─────────────────────────────────────────────────── */
+.section-label {
+  font-size: 12px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-label::after {
+  content: '';
+  flex: 1; height: 1px;
+  background: var(--border);
+  transition: background var(--transition);
+}
+
+/* ── Form fields ───────────────────────────────────────────────────── */
+.field-group { margin-bottom: 18px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+
+label {
+  display: block;
+  font-size: 13px; font-weight: 500;
+  color: var(--text); margin-bottom: 5px;
+  transition: color var(--transition);
+}
+.field-hint { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+
+input[type="number"], select {
+  width: 100%; padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font); font-size: 14px;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+  appearance: none;
+  -webkit-appearance: none;
+}
+input[type="number"]:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+/* ── Slider ────────────────────────────────────────────────────────── */
+input[type="range"] {
+  width: 100%; -webkit-appearance: none; appearance: none;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px; cursor: pointer;
+  margin: 6px 0 2px;
+  transition: background var(--transition);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  transition: transform 0.1s, background var(--transition);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.range-labels {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--text-dim); margin-top: 1px;
+}
+
+/* ── Select styled ─────────────────────────────────────────────────── */
+.select-wrap { position: relative; }
+.select-wrap::after {
+  content: '▾';
+  position: absolute; right: 10px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted); pointer-events: none; font-size: 11px;
+  transition: color var(--transition);
+}
+select { padding-right: 28px; }
+
+/* ── Predict button ────────────────────────────────────────────────── */
+.btn-predict {
+  width: 100%; padding: 11px;
+  background: var(--accent);
+  color: #fff; border: none; border-radius: var(--radius);
+  font-family: var(--font); font-size: 14px; font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition);
+  margin-top: 4px;
+}
+.btn-predict:hover { background: var(--accent-hover); }
+.btn-predict:active { background: var(--accent-active); }
+.btn-predict.loading { opacity: 0.6; pointer-events: none; }
+.spinner {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+  border-radius: 50%; animation: spin 0.6s linear infinite;
+  vertical-align: middle; margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.btn-footnote {
+  margin-top: 8px; font-size: 11px; color: var(--text-dim); text-align: center;
+}
+
+/* ── Result card ───────────────────────────────────────────────────── */
+.result-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  animation: fadeIn 0.2s ease;
+  transition: background var(--transition), border-color var(--transition);
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.result-header {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  transition: border-color var(--transition);
+}
+.result-prob {
+  font-size: 44px; font-weight: 700;
+  line-height: 1; letter-spacing: -0.02em;
+}
+.result-prob-label {
+  font-size: 12px; color: var(--text-muted);
+  margin-top: 2px; font-weight: 500;
+}
+.result-risk-badge {
+  padding: 6px 16px;
+  border-radius: 3px;
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* ── Risk meter ────────────────────────────────────────────────────── */
+.risk-meter-wrap { padding: 16px 22px; border-bottom: 1px solid var(--border); transition: border-color var(--transition); }
+.risk-meter-label {
+  font-size: 12px; color: var(--text-muted); font-weight: 500;
+}
+.risk-meter {
+  height: 6px; background: var(--border);
+  border-radius: 3px; position: relative; margin: 8px 0 6px;
+  transition: background var(--transition);
+}
+.risk-meter-fill {
+  height: 100%; border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.risk-zones {
+  display: flex; font-size: 11px; color: var(--text-dim);
+  justify-content: space-between;
+}
+
+/* ── Action banner ─────────────────────────────────────────────────── */
+.action-banner {
+  padding: 12px 22px;
+  border-left: 3px solid;
+  margin: 0 22px 16px;
+  font-size: 13px; line-height: 1.4;
+}
+
+/* ── Risk factors ──────────────────────────────────────────────────── */
+.risk-factors { padding: 0 22px 16px; }
+.risk-factors-title {
+  font-size: 12px; color: var(--text-muted); font-weight: 500;
+  margin-bottom: 8px;
+}
+.risk-factor-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  transition: border-color var(--transition);
+}
+.risk-factor-item:last-child { border-bottom: none; }
+.rf-rank {
+  width: 22px; height: 22px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--text-muted); font-weight: 600; flex-shrink: 0;
+  transition: background var(--transition);
+}
+.rf-name { flex: 1; font-size: 13px; color: var(--text); }
+.rf-value { font-size: 12px; color: var(--text-muted); width: 70px; text-align: right; flex-shrink: 0; }
+.rf-bar-wrap { width: 80px; height: 4px; background: var(--border); border-radius: 2px; transition: background var(--transition); }
+.rf-bar { height: 100%; border-radius: 2px; }
+.rf-score { font-size: 11px; color: var(--text-dim); width: 36px; text-align: right; }
+
+/* ── Model stats row ───────────────────────────────────────────────── */
+.stats-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  transition: background var(--transition), border-color var(--transition);
+}
+.stat-value {
+  font-size: 24px; font-weight: 700;
+  color: var(--accent); line-height: 1; letter-spacing: -0.01em;
+  transition: color var(--transition);
+}
+.stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
+
+/* ── Feature importance mini chart ────────────────────────────────── */
+.importance-chart { display: flex; flex-direction: column; gap: 8px; }
+.imp-row { display: flex; align-items: center; gap: 8px; }
+.imp-name { font-size: 12px; color: var(--text-muted); width: 170px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.imp-bar-bg { flex: 1; height: 4px; background: var(--border); border-radius: 2px; transition: background var(--transition); }
+.imp-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: background var(--transition); }
+.imp-val { font-size: 12px; color: var(--text-dim); width: 36px; text-align: right; }
+
+/* ── Log / history ─────────────────────────────────────────────────── */
+.prediction-log {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  max-height: 200px;
+  transition: background var(--transition), border-color var(--transition);
+}
+.log-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px; color: var(--text-muted); font-weight: 500;
+  display: flex; justify-content: space-between; align-items: center;
+  transition: border-color var(--transition);
+}
+.log-clear { font-size: 12px; color: var(--text-dim); cursor: pointer; }
+.log-clear:hover { color: var(--danger); }
+.log-body { overflow-y: auto; max-height: 150px; }
+.log-entry {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  transition: border-color var(--transition);
+}
+.log-entry:last-child { border-bottom: none; }
+.log-time { color: var(--text-dim); width: 44px; flex-shrink: 0; }
+.log-prob { font-weight: 600; width: 40px; }
+.log-lvl {
+  font-size: 11px; padding: 1px 5px; border-radius: 2px;
+  font-weight: 600;
+}
+.log-params { color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.log-empty { padding: 16px 14px; color: var(--text-dim); font-size: 13px; text-align: center; }
+
+/* ── Error toast ───────────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 20px; right: 20px;
+  background: var(--toast-bg); border: 1px solid var(--toast-border);
+  color: var(--danger); padding: 10px 16px;
+  border-radius: var(--radius); font-size: 13px;
+  animation: slideInRight 0.2s ease; z-index: 9000;
+  transition: background var(--transition), border-color var(--transition);
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Placeholder state ─────────────────────────────────────────────── */
+.placeholder-state {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px 24px;
+  text-align: center; color: var(--text-dim);
+  transition: background var(--transition), border-color var(--transition);
+}
+.placeholder-icon { font-size: 28px; margin-bottom: 8px; opacity: 0.5; }
+.placeholder-text { font-size: 14px; line-height: 1.6; }
+
+/* ── Responsive ────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; }
+  .panel { border-right: none; border-bottom: 1px solid var(--border); }
+  .field-row { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Header ───────────────────────────────────────────────────────────── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">PM</div>
+    <div class="logo-text">Predict<span>Maint</span></div>
+  </div>
+  <div class="header-status">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Connecting...</span>
+  </div>
+  <div class="header-meta">
+    <span id="modelBadge" class="badge">Gradient Boosting</span>
+    <span id="headerAccuracy" style="color:var(--text-muted)">—</span>
+    <div class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark/light mode">&#9790;</div>
+  </div>
+</header>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- LEFT: Input Panel -->
+  <aside class="panel">
+
+    <div class="section-label">Machine Parameters</div>
+
+    <!-- Type -->
+    <div class="field-group">
+      <label>Product Type</label>
+      <div class="select-wrap">
+        <select id="type">
+          <option value="L">L — Low Grade</option>
+          <option value="M" selected>M — Medium Grade</option>
+          <option value="H">H — High Grade</option>
+        </select>
+      </div>
+      <div class="field-hint">Product quality variant</div>
+    </div>
+
+    <!-- Air Temp -->
+    <div class="field-group">
+      <label>Air Temperature <span style="color:var(--text-dim)">[K]</span></label>
+      <input type="number" id="air_temp" value="300.5" step="0.1" min="295" max="304" />
+      <input type="range" id="air_temp_range" min="295" max="304" step="0.1" value="300.5" />
+      <div class="range-labels"><span>295 K</span><span>304 K</span></div>
+      <div class="field-hint">Ambient air temperature</div>
+    </div>
+
+    <!-- Process Temp -->
+    <div class="field-group">
+      <label>Process Temperature <span style="color:var(--text-dim)">[K]</span></label>
+      <input type="number" id="proc_temp" value="310.2" step="0.1" min="305" max="314" />
+      <input type="range" id="proc_temp_range" min="305" max="314" step="0.1" value="310.2" />
+      <div class="range-labels"><span>305 K</span><span>314 K</span></div>
+      <div class="field-hint">Operating temperature</div>
+    </div>
+
+    <!-- RPM + Torque -->
+    <div class="field-row">
+      <div>
+        <label>Rotational Speed <span style="color:var(--text-dim)">[rpm]</span></label>
+        <input type="number" id="rpm" value="1500" step="10" min="1168" max="2886" />
+        <div class="field-hint">Spindle speed</div>
+      </div>
+      <div>
+        <label>Torque <span style="color:var(--text-dim)">[Nm]</span></label>
+        <input type="number" id="torque" value="40.0" step="0.5" min="3.8" max="76.6" />
+        <div class="field-hint">Rotational force</div>
+      </div>
+    </div>
+
+    <!-- Tool Wear -->
+    <div class="field-group">
+      <label>Tool Wear <span style="color:var(--text-dim)">[min]</span></label>
+      <input type="number" id="tool_wear" value="100" step="1" min="0" max="253" />
+      <input type="range" id="tool_wear_range" min="0" max="253" step="1" value="100" />
+      <div class="range-labels"><span>0 min</span><span>253 min</span></div>
+      <div class="field-hint">Cumulative tool usage</div>
+    </div>
+
+    <button class="btn-predict" id="predictBtn" onclick="runPrediction()">
+      Run Failure Prediction
+    </button>
+    <div class="btn-footnote">POST /predict</div>
+
+  </aside>
+
+  <!-- RIGHT: Output Panel -->
+  <div class="panel-right">
+
+    <!-- Model performance stats -->
+    <div>
+      <div class="section-label">Model Performance</div>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-value" id="statAccuracy">—</div>
+          <div class="stat-label">Accuracy</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statRecall" style="color:var(--warn); transition:color var(--transition)">—</div>
+          <div class="stat-label">Recall (Failure)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statF1" style="color:var(--text); transition:color var(--transition)">—</div>
+          <div class="stat-label">F1 Score</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature importance -->
+    <div>
+      <div class="section-label">Feature Importance</div>
+      <div class="importance-chart" id="importanceChart">
+        <div style="color:var(--text-dim); font-size:12px;">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Prediction result -->
+    <div>
+      <div class="section-label">Prediction Result</div>
+      <div id="resultArea">
+        <div class="placeholder-state">
+          <div class="placeholder-icon">&#9881;</div>
+          <div class="placeholder-text">
+            Enter machine parameters on the left<br/>and click <strong style="color:var(--text); transition:color var(--transition)">Run Failure Prediction</strong><br/>to analyse failure probability.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prediction log -->
+    <div>
+      <div class="section-label">Prediction History</div>
+      <div class="prediction-log">
+        <div class="log-header">
+          <span>Recent predictions</span>
+          <span class="log-clear" onclick="clearLog()">Clear</span>
+        </div>
+        <div class="log-body" id="logBody">
+          <div class="log-empty">No predictions yet.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────
+const API = '';   // Same origin. Change to 'http://localhost:5000' if serving separately.
+let predictionLog = [];
+
+// ── Theme toggle ─────────────────────────────────────────────────────────
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  document.getElementById('themeToggle').innerHTML = next === 'dark' ? '&#9728;' : '&#9790;';
+}
+
+function loadTheme() {
+  const saved = localStorage.getItem('theme');
+  if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggle').innerHTML = '&#9728;';
+  }
+}
+
+// ── Sync sliders ↔ number inputs ─────────────────────────────────────────
+function syncPair(inputId, rangeId) {
+  const inp = document.getElementById(inputId);
+  const rng = document.getElementById(rangeId);
+  if (!inp || !rng) return;
+  inp.addEventListener('input', () => { rng.value = inp.value; });
+  rng.addEventListener('input', () => { inp.value = rng.value; });
+}
+syncPair('air_temp',   'air_temp_range');
+syncPair('proc_temp',  'proc_temp_range');
+syncPair('tool_wear',  'tool_wear_range');
+
+// ── Load model stats on page ready ───────────────────────────────────────
+async function loadStats() {
+  try {
+    const res = await fetch(`${API}/stats`);
+    if (!res.ok) throw new Error('API unreachable');
+    const data = await res.json();
+
+    // Status
+    document.getElementById('statusDot').style.background = 'var(--ok)';
+    document.getElementById('statusText').textContent = 'API Connected';
+
+    // Model perf
+    const s = data.model_stats;
+    document.getElementById('statAccuracy').textContent = (s.accuracy * 100).toFixed(1) + '%';
+    document.getElementById('statRecall').textContent   = (s.recall   * 100).toFixed(1) + '%';
+    document.getElementById('statF1').textContent       = s.f1.toFixed(3);
+    document.getElementById('headerAccuracy').textContent = `Acc ${(s.accuracy*100).toFixed(1)}%`;
+
+    // Feature importance
+    renderImportance(data.feature_importance);
+
+  } catch (e) {
+    document.getElementById('statusDot').style.background = 'var(--danger)';
+    document.getElementById('statusText').textContent = 'API Offline — Start app.py';
+  }
+}
+
+function renderImportance(imp) {
+  const sorted = Object.entries(imp).sort((a, b) => b[1] - a[1]);
+  const max = sorted[0][1];
+  const chart = document.getElementById('importanceChart');
+  chart.innerHTML = sorted.map(([feat, val]) => `
+    <div class="imp-row">
+      <div class="imp-name">${feat}</div>
+      <div class="imp-bar-bg">
+        <div class="imp-bar-fill" style="width:${(val/max*100).toFixed(1)}%"></div>
+      </div>
+      <div class="imp-val">${(val*100).toFixed(1)}%</div>
+    </div>
+  `).join('');
+}
+
+// ── Run prediction ────────────────────────────────────────────────────────
+async function runPrediction() {
+  const btn = document.getElementById('predictBtn');
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="spinner"></span>Analysing...';
+
+  const payload = {
+    type:                document.getElementById('type').value,
+    air_temperature:     parseFloat(document.getElementById('air_temp').value),
+    process_temperature: parseFloat(document.getElementById('proc_temp').value),
+    rotational_speed:    parseInt(document.getElementById('rpm').value),
+    torque:              parseFloat(document.getElementById('torque').value),
+    tool_wear:           parseInt(document.getElementById('tool_wear').value),
+  };
+
+  try {
+    const res = await fetch(`${API}/predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Server error');
+    }
+    const data = await res.json();
+    renderResult(data);
+    addToLog(data, payload);
+  } catch (e) {
+    showToast(e.message);
+  } finally {
+    btn.classList.remove('loading');
+    btn.innerHTML = 'Run Failure Prediction';
+  }
+}
+
+// ── Render result card ────────────────────────────────────────────────────
+function renderResult(data) {
+  const prob  = (data.failure_probability * 100).toFixed(1);
+  const risk  = data.risk;
+  const color = risk.color;
+  const tfs   = data.top_risk_factors;
+
+  const maxRiskScore = Math.max(...tfs.map(f => f.risk_score));
+
+  document.getElementById('resultArea').innerHTML = `
+    <div class="result-card">
+
+      <div class="result-header">
+        <div>
+          <div class="result-prob" style="color:${color}">${prob}%</div>
+          <div class="result-prob-label">Failure Probability</div>
+        </div>
+        <div class="result-risk-badge" style="background:${color}12; color:${color}; border:1px solid ${color}30">
+          ${risk.level}
+        </div>
+      </div>
+
+      <div class="risk-meter-wrap">
+        <div class="risk-meter-label">Risk Level</div>
+        <div class="risk-meter">
+          <div class="risk-meter-fill" style="width:${prob}%; background:${color}"></div>
+        </div>
+        <div class="risk-zones">
+          <span>Low <20%</span>
+          <span>Moderate 20–45%</span>
+          <span>High 45–70%</span>
+          <span>Critical >70%</span>
+        </div>
+      </div>
+
+      <div class="action-banner" style="border-color:${color}; background:${color}08; color:${color}">
+        <strong>Action:</strong> ${risk.action}
+      </div>
+
+      <div class="risk-factors">
+        <div class="risk-factors-title">Top Risk Factors</div>
+        ${tfs.map((f, i) => `
+          <div class="risk-factor-item">
+            <div class="rf-rank">${i+1}</div>
+            <div class="rf-name">${f.feature}</div>
+            <div class="rf-value">${typeof f.value === 'number' ? f.value.toFixed(1) : f.value}</div>
+            <div class="rf-bar-wrap">
+              <div class="rf-bar" style="width:${maxRiskScore > 0 ? (f.risk_score/maxRiskScore*100).toFixed(0) : 0}%; background:${color}"></div>
+            </div>
+            <div class="rf-score">${(f.risk_score).toFixed(3)}</div>
+          </div>
+        `).join('')}
+      </div>
+
+    </div>
+  `;
+}
+
+// ── Prediction log ────────────────────────────────────────────────────────
+function addToLog(data, payload) {
+  const now = new Date();
+  const time = now.toTimeString().slice(0, 5);
+  const prob = (data.failure_probability * 100).toFixed(1) + '%';
+  const risk = data.risk;
+
+  predictionLog.unshift({ time, prob, risk, payload });
+  if (predictionLog.length > 20) predictionLog.pop();
+
+  const logBody = document.getElementById('logBody');
+  logBody.innerHTML = predictionLog.map(entry => `
+    <div class="log-entry">
+      <span class="log-time">${entry.time}</span>
+      <span class="log-prob" style="color:${entry.risk.color}">${entry.prob}</span>
+      <span class="log-lvl" style="background:${entry.risk.color}12;color:${entry.risk.color}">${entry.risk.level}</span>
+      <span class="log-params">T:${entry.payload.type} RPM:${entry.payload.rotational_speed} Nm:${entry.payload.torque} W:${entry.payload.tool_wear}</span>
+    </div>
+  `).join('');
+}
+
+function clearLog() {
+  predictionLog = [];
+  document.getElementById('logBody').innerHTML = '<div class="log-empty">No predictions yet.</div>';
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
+// ── Keyboard shortcut ─────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey) runPrediction();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────
+loadTheme();
+loadStats();
+</script>
+</body>
+</html>
